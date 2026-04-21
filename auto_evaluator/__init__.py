@@ -1,0 +1,2 @@
+"""Auto evaluator package."""
+
