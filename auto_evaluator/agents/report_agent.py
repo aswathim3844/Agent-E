@@ -20,6 +20,7 @@ def report_agent(state: EvaluationState) -> EvaluationState:
             {
                 "Student Name": result["student_name"],
                 "Submission Link": result["submission_link"],
+                "Validation Status": result.get("validation_status", "invalid"),
                 "Total Marks (out of 20)": result["final_total"],
                 "Evaluation Score (out of 15)": result["quality_score"],
                 "Plagiarism Flag": "Yes" if result["plagiarized"] else "No",
@@ -32,14 +33,30 @@ def report_agent(state: EvaluationState) -> EvaluationState:
                 "Status": "Pass" if result["final_total"] >= pass_mark else "Fail",
             }
         )
-        for criterion in result.get("scores_per_criterion", []):
+        criteria = result.get("scores_per_criterion", [])
+        for criterion in criteria:
             detail_rows.append(
                 {
                     "Student Name": result["student_name"],
+                    "Validation Status": result.get("validation_status", "invalid"),
                     "Criterion": criterion.get("name", ""),
                     "Awarded": criterion.get("awarded", 0),
                     "Weight": criterion.get("weight", 0),
                     "Justification": criterion.get("justification", ""),
+                    "Remarks": result["remarks"],
+                }
+            )
+        if not criteria:
+            # Keep invalid or non-extractable submissions visible in the detailed report too.
+            detail_rows.append(
+                {
+                    "Student Name": result["student_name"],
+                    "Validation Status": result.get("validation_status", "invalid"),
+                    "Criterion": "",
+                    "Awarded": 0,
+                    "Weight": 0,
+                    "Justification": "",
+                    "Remarks": result["remarks"],
                 }
             )
 

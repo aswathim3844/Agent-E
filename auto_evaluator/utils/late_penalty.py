@@ -42,3 +42,10 @@ def calculate_late_penalty(days_late: int, config: AppConfig) -> tuple[int, bool
     if 8 <= days_late <= 14:
         return config.late_penalty_8_14_days, False
     return config.late_penalty_8_14_days, True
+
+
+def apply_excessive_late_reduction(final_total: float, days_late: int) -> float:
+    # Apply the 50% reduction only after the final total has already been computed.
+    if days_late > 7:
+        return round(max(0.0, final_total) * 0.5, 2)
+    return round(max(0.0, final_total), 2)

@@ -26,14 +26,21 @@ def validator_agent(state: EvaluationState) -> EvaluationState:
     elif submission_type == "github" and "/blob/" in url:
         resolved_url = build_raw_github_url(url)
 
-    result = {"valid": False, "type": submission_type, "url": resolved_url, "remark": ""}
+    result = {
+        "valid": False,
+        "validation_status": "invalid",
+        "type": submission_type,
+        "url": resolved_url,
+        "remark": "",
+    }
     if submission_type in {"local_text", "local_dir", "zip"} and not resolved_url.lower().startswith(("http://", "https://")):
         path = Path(resolved_url)
         if path.exists():
             result["valid"] = True
+            result["validation_status"] = "valid"
             result["remark"] = "Local submission path is reachable"
         else:
-            result["remark"] = "Local submission path does not exist"
+            result["remark"] = "Submission link not accessible"
         state["validation_result"] = result
         return state
     try:
@@ -44,13 +51,14 @@ def validator_agent(state: EvaluationState) -> EvaluationState:
             headers={"User-Agent": "auto-evaluator/1.0"},
         )
         if response.status_code >= 400:
-            result["remark"] = f"Submission link returned HTTP {response.status_code}"
+            result["remark"] = "Submission link not accessible"
         elif submission_type == "other":
-            result["remark"] = "Unsupported submission type"
+            result["remark"] = "Submission link not accessible"
         else:
             result["valid"] = True
+            result["validation_status"] = "valid"
             result["remark"] = "Link is reachable"
     except Exception as exc:
-        result["remark"] = f"Invalid or unreachable link: {exc}"
+        result["remark"] = f"Submission link not accessible: {exc}"
     state["validation_result"] = result
     return state

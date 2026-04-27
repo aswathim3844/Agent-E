@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import shutil
@@ -66,11 +67,22 @@ if uploaded_file:
             try:
                 progress.progress(20, text="Saved input file")
                 with st.spinner("Running evaluator..."):
-                    run(str(input_path), str(output_path))
+                    final_state = run(str(input_path), str(output_path))
                 progress.progress(80, text="Building preview")
                 summary_df = pd.read_excel(output_path, sheet_name="summary")
                 progress.progress(100, text="Done")
                 st.success("Evaluation complete.")
+                rubric = final_state.get("rubric", {})
+                if rubric:
+                    st.subheader("Generated Rubric")
+                    st.json(rubric)
+                    # JSON keeps the rubric structure intact for reuse outside the app.
+                    st.download_button(
+                        "Download Rubric",
+                        data=json.dumps(rubric, indent=2),
+                        file_name="rubric.json",
+                        mime="application/json",
+                    )
                 st.download_button(
                     "Download output Excel",
                     data=output_path.read_bytes(),

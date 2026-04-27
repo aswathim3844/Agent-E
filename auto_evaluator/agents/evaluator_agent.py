@@ -4,7 +4,11 @@ from typing import Any
 
 from auto_evaluator.state import EvaluationState
 from auto_evaluator.utils.heuristics import heuristic_evaluate_submission
-from auto_evaluator.utils.late_penalty import calculate_days_late, calculate_late_penalty
+from auto_evaluator.utils.late_penalty import (
+    apply_excessive_late_reduction,
+    calculate_days_late,
+    calculate_late_penalty,
+)
 from auto_evaluator.utils.llm_client import LLMClient, build_evaluation_prompt
 from auto_evaluator.utils.plagiarism import normalize_content, similarity_score
 
@@ -69,6 +73,7 @@ def evaluator_agent(state: EvaluationState) -> EvaluationState:
         available_penalty_pool = 5 - min(5, late_penalty)
         raw_total = quality_score + available_penalty_pool
         final_total = min(10.0, raw_total) if capped else min(20.0, raw_total)
+        final_total = apply_excessive_late_reduction(final_total, days_late)
 
     confidence = float(evaluation.get("confidence", 0) or 0)
     needs_manual_review = (
@@ -95,6 +100,7 @@ def evaluator_agent(state: EvaluationState) -> EvaluationState:
         "plagiarism_score": round(plagiarism_score, 4),
         "days_late": days_late,
         "late_penalty_marks": late_penalty,
+        "validation_status": validation.get("validation_status", "invalid"),
         "final_total": round(final_total, 2),
         "needs_manual_review": needs_manual_review,
         "review_reason": "; ".join([item for item in remarks if item])[:2000],
