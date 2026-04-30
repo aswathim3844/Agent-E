@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from typing import Any
 
 from auto_evaluator.agents.evaluator_agent import evaluator_agent
@@ -39,6 +40,7 @@ def prepare_state(input_path: str, output_path: str) -> EvaluationState:
             "app_config": config,
             "input_path": input_path,
             "output_path": output_path,
+            "check_plagiarism": os.getenv("CHECK_PLAGIARISM", "true").lower() == "true",
         },
     )
 

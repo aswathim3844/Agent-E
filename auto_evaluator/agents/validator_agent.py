@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 
@@ -28,19 +29,27 @@ def validator_agent(state: EvaluationState) -> EvaluationState:
 
     result = {
         "valid": False,
-        "validation_status": "invalid",
+        "validation_status": "warning_invalid",
         "type": submission_type,
         "url": resolved_url,
-        "remark": "",
+        "remark": "unsupported_link_type",
     }
     if submission_type in {"local_text", "local_dir", "zip"} and not resolved_url.lower().startswith(("http://", "https://")):
         path = Path(resolved_url)
         if path.exists():
             result["valid"] = True
             result["validation_status"] = "valid"
-            result["remark"] = "Local submission path is reachable"
+            result["remark"] = "valid_local_path"
         else:
-            result["remark"] = "Submission link not accessible"
+            result["remark"] = "invalid_local_path"
+        state["validation_result"] = result
+        return state
+    if submission_type == "other":
+        state["validation_result"] = result
+        return state
+    parsed = urlparse(resolved_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        result["remark"] = "unsupported_link_type"
         state["validation_result"] = result
         return state
     try:
@@ -50,15 +59,25 @@ def validator_agent(state: EvaluationState) -> EvaluationState:
             allow_redirects=True,
             headers={"User-Agent": "auto-evaluator/1.0"},
         )
-        if response.status_code >= 400:
-            result["remark"] = "Submission link not accessible"
-        elif submission_type == "other":
-            result["remark"] = "Submission link not accessible"
+        content_type = (response.headers.get("Content-Type") or "").lower()
+        content_len = len(response.content or b"")
+        if response.status_code in {401, 403}:
+            result["remark"] = "private_or_auth_required"
+        elif response.status_code >= 400:
+            result["remark"] = "network_error"
+        elif content_len == 0:
+            result["remark"] = "empty_content"
+        elif submission_type == "zip" and "zip" not in content_type and not resolved_url.lower().endswith(".zip"):
+            result["remark"] = "not_downloadable"
+        elif submission_type == "colab" and "html" in content_type and "json" not in content_type:
+            result["remark"] = "not_downloadable"
+        elif submission_type == "drive" and content_len < 100 and "html" in content_type:
+            result["remark"] = "not_downloadable"
         else:
             result["valid"] = True
             result["validation_status"] = "valid"
-            result["remark"] = "Link is reachable"
+            result["remark"] = "link_reachable_and_downloadable"
     except Exception as exc:
-        result["remark"] = f"Submission link not accessible: {exc}"
+        result["remark"] = f"network_error: {exc}"
     state["validation_result"] = result
     return state

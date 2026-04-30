@@ -10,7 +10,57 @@ def _safe_snippet(text: str, limit: int = 180) -> str:
 
 
 def generate_rubric_from_text(assignment_name: str, pdf_text: str) -> dict[str, Any]:
-    text = (pdf_text or "").lower()
+    text = f"{assignment_name}\n{pdf_text}".lower()
+    data_prep_signals = [
+        "missing value",
+        "imputation",
+        "outlier",
+        "iqr",
+        "scaling",
+        "standardscaler",
+        "minmax",
+        "one-hot",
+        "encoding",
+        "train test split",
+        "sale price",
+        "data cleaning",
+    ]
+    if any(signal in text for signal in data_prep_signals):
+        return {
+            "max_score": 15,
+            "criteria": [
+                {
+                    "name": "Dataset understanding and profiling",
+                    "weight": 2,
+                    "description": "Reviews structure, data types, and summary statistics before transformations.",
+                },
+                {
+                    "name": "Data quality checks",
+                    "weight": 2,
+                    "description": "Checks duplicate records/features and documents cleanup decisions.",
+                },
+                {
+                    "name": "Missing value treatment",
+                    "weight": 3,
+                    "description": "Applies suitable imputation strategy for numeric and categorical features.",
+                },
+                {
+                    "name": "Feature preparation",
+                    "weight": 3,
+                    "description": "Uses appropriate scaling/encoding methods while preserving target semantics.",
+                },
+                {
+                    "name": "Outlier handling",
+                    "weight": 2,
+                    "description": "Identifies and handles extreme/unrealistic values with a defensible method.",
+                },
+                {
+                    "name": "Train-test setup",
+                    "weight": 3,
+                    "description": "Performs correct target selection and reproducible train/test split.",
+                },
+            ],
+        }
     criteria = []
 
     if any(keyword in text for keyword in ["correct", "output", "result", "accuracy"]):

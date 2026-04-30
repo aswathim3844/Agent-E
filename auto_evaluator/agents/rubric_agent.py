@@ -9,10 +9,36 @@ from auto_evaluator.utils.llm_client import LLMClient, build_rubric_prompt
 DEFAULT_RUBRIC = {
     "max_score": 15,
     "criteria": [
-        {"name": "Correctness of output", "weight": 7, "description": "Expected functionality and correctness."},
-        {"name": "Code quality and structure", "weight": 4, "description": "Readable, modular, well-structured code."},
-        {"name": "Naming conventions", "weight": 2, "description": "Clear names for files, variables, and functions."},
-        {"name": "Documentation and comments", "weight": 2, "description": "Helpful comments and usage instructions."},
+        {
+            "name": "Dataset understanding and profiling",
+            "weight": 2,
+            "description": "Reviews schema, data types, and summary statistics before transformation.",
+        },
+        {
+            "name": "Data quality checks",
+            "weight": 2,
+            "description": "Checks duplicates and records cleanup decisions clearly.",
+        },
+        {
+            "name": "Missing value treatment",
+            "weight": 3,
+            "description": "Uses appropriate imputation strategy for numeric and categorical data.",
+        },
+        {
+            "name": "Feature preparation",
+            "weight": 3,
+            "description": "Applies scaling/encoding correctly without distorting target semantics.",
+        },
+        {
+            "name": "Outlier handling",
+            "weight": 2,
+            "description": "Identifies and treats unrealistic/extreme values with a robust method.",
+        },
+        {
+            "name": "Train-test setup",
+            "weight": 3,
+            "description": "Builds correct target split and reproducible train/test partition.",
+        },
     ],
 }
 

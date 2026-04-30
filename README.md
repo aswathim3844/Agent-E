@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# Agent-E
-=======
 # Auto Evaluator
 
 This project evaluates student assignment submissions from an Excel file using a 5-agent workflow:
@@ -11,21 +8,7 @@ This project evaluates student assignment submissions from an Excel file using a
 4. Evaluation with plagiarism and late penalties
 5. Report generation
 
-Human intervention is intentionally removed. Suspected or low-confidence cases are marked with `Needs Review` and `Review Reason` in the final Excel output.
-
-## Project structure
-
-```text
-auto_evaluator/
-  agents/
-  orchestration/
-  utils/
-main.py
-app.py
-requirements.txt
-.env.example
-samples/
-```
+Suspected or low-confidence cases are marked with `Needs Review` and `Review Reason` in the final Excel output.
 
 ## Setup
 
@@ -38,62 +21,40 @@ copy .env.example .env
 
 Add your `OPENAI_API_KEY` or `GOOGLE_API_KEY` to `.env`.
 
-## Input format
-
-The input Excel file needs two sheets:
-
-- `assignment`
-- `submissions`
-
-Required columns:
-
-`assignment` sheet:
-- `assignment_name`
-- `pdf_link`
-- `deadline`
-
-`submissions` sheet:
-- `student_name`
-- `submission_link`
-- `submission_timestamp`
-
-## Run
-
-```bash
-python samples/generate_sample_input.py
-```
-
-For a local dry run without calling an external LLM, set `LLM_FORCE_FALLBACK=true` in `.env`, then run:
+## Run CLI
 
 ```bash
 python main.py --input samples/input.xlsx --output samples/output.xlsx
 ```
 
-To use the browser upload frontend:
+## Run Flask UI
 
 ```bash
-streamlit run app.py
+python app.py
 ```
+
+Open `http://127.0.0.1:8501`.
+
+## Validation policy
+
+- Link checks are strict and type-aware.
+- Unsupported or weak links are marked with machine-readable remarks such as:
+  - `unsupported_link_type`
+  - `private_or_auth_required`
+  - `not_downloadable`
+  - `empty_content`
+  - `network_error`
+  - `invalid_local_path`
+- Policy is warn-and-continue: the run proceeds and flags records for review when needed.
+
+## Plagiarism policy
+
+- Plagiarism similarity is computed on normalized full text, including markdown and comments.
+- Output now includes `Plagiarism Flag`, `Similarity Score`, and `Plagiarism Basis`.
 
 ## Output
 
-The output Excel file includes:
+The output Excel contains:
 
 - `summary`
 - `detailed_breakdown`
-
-The `summary` sheet includes total marks, quality score, plagiarism flag, late penalties, and review flags.
-
-## Frontend
-
-The Streamlit app lets you upload an Excel file from your computer, run the evaluator, and download the output without typing file paths.
-
-## Notes
-
-- Public GitHub repositories and direct zip/notebook URLs are the most reliable sources for v1.
-- Local file paths are also supported for PDFs, notebooks, zip files, and folders of source files, which makes local testing much easier.
-- Google Drive and Colab links work best when they are public and downloadable. The validator now attempts to convert common Drive and Colab share links into direct download URLs.
-- Plagiarism detection uses normalized exact-copy similarity within the same batch.
-- If the LLM fails, the system falls back to zero-score rubric entries and records that in remarks.
-- You can set `LLM_FORCE_FALLBACK=true` to test the workflow without calling an external model.
->>>>>>> cc84891 (Agent_E)

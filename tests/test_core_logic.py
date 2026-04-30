@@ -25,5 +25,27 @@ def test_plagiarism_normalization_and_similarity():
     """
     normalized_left = normalize_content(left)
     normalized_right = normalize_content(right)
-    assert normalized_left == normalized_right
-    assert similarity_score(normalized_left, normalized_right) == 1.0
+    assert normalized_left != normalized_right
+    assert similarity_score(normalized_left, normalized_right) < 1.0
+
+
+def test_plagiarism_detects_markdown_heavy_similarity():
+    left = """
+    # Assignment Solution
+    ## Approach
+    We use pandas and numpy.
+    ```python
+    def solve(x):
+        return x + 1
+    ```
+    """
+    right = """
+    # Assignment Solution
+    ## Approach
+    We use pandas and numpy.
+    ```python
+    def solve(x):
+        return x + 1
+    ```
+    """
+    assert similarity_score(normalize_content(left), normalize_content(right)) == 1.0

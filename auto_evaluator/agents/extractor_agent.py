@@ -8,7 +8,9 @@ def extractor_agent(state: EvaluationState) -> EvaluationState:
     validation = state["validation_result"]
     state["extracted_content"] = ""
     state["extraction_metadata"] = {}
-    if not validation.get("valid"):
+    if (not validation.get("valid")) and validation.get("type") == "other":
+        return state
+    if not validation.get("url"):
         return state
     content, metadata = extract_submission_content(
         validation["url"],

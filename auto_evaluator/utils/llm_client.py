@@ -69,6 +69,16 @@ You are generating a grading rubric for a programming assignment.
 Return strict JSON only with keys: max_score, criteria.
 The criteria array must contain objects with keys: name, weight, description.
 Weights must sum exactly to 15.
+Do not copy any external rubric text verbatim.
+Use the following as style reference only (paraphrase and adapt to assignment context):
+- Initial dataset understanding and summary statistics
+- Redundancy/duplicate checks
+- Missing value handling strategy
+- Feature scaling correctness (exclude target from scaling)
+- Categorical encoding method selection
+- Outlier detection and treatment
+- Proper train/test split and target separation
+Prefer 5-7 criteria with practical, measurable descriptions.
 
 Assignment name: {assignment_name}
 Assignment text:

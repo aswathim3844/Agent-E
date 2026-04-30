@@ -34,6 +34,7 @@ TEXT_EXTENSIONS = {
     ".css",
     ".sql",
 }
+TABULAR_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 
 
 def is_url(value: str) -> bool:
@@ -70,17 +71,24 @@ def _resolve_sheet_name(sheet_names: list[str], target: str) -> str:
 def _resolve_columns(df: pd.DataFrame, required: dict[str, list[str]]) -> pd.DataFrame:
     renamed = {}
     existing = list(df.columns)
+    used_columns: set[str] = set()
     for canonical, aliases in required.items():
         if canonical in df.columns:
+            used_columns.add(canonical)
             continue
-        candidates = aliases + existing
         match = None
-        for candidate in candidates:
-            if _normalize_name(candidate) == _normalize_name(canonical):
-                match = candidate
+        normalized_aliases = {_normalize_name(alias) for alias in aliases + [canonical]}
+
+        # Prefer exact normalized matches from currently unused columns.
+        for col in existing:
+            if col in used_columns:
+                continue
+            if _normalize_name(col) in normalized_aliases:
+                match = col
                 break
+
         if match is None:
-            all_candidates = existing[:]
+            all_candidates = [col for col in existing if col not in used_columns]
             for alias in aliases:
                 try:
                     match = _best_match(alias, all_candidates)
@@ -90,6 +98,7 @@ def _resolve_columns(df: pd.DataFrame, required: dict[str, list[str]]) -> pd.Dat
         if match is None:
             raise ValueError(f"Missing required column: {canonical}")
         renamed[match] = canonical
+        used_columns.add(match)
     return df.rename(columns=renamed)
 
 
@@ -118,6 +127,7 @@ def read_input_excel(input_path: str) -> tuple[dict[str, Any], list[dict[str, An
                 "submitted at",
                 "received time",
                 "date submitted",
+                "submission_timestamp(date(yyyy-mm-dd) (hh:mm:ss)",
             ],
         },
     )
@@ -147,6 +157,8 @@ def detect_submission_type(url: str) -> str:
         suffix = Path(url).suffix.lower()
         if suffix == ".zip":
             return "zip"
+        if suffix in TABULAR_EXTENSIONS:
+            return "tabular"
         if suffix == ".ipynb":
             return "local_text"
         if suffix in TEXT_EXTENSIONS:
@@ -154,6 +166,10 @@ def detect_submission_type(url: str) -> str:
         if Path(url).is_dir():
             return "local_dir"
     if "github.com" in lowered:
+        parsed = urlparse(url)
+        suffix = Path(parsed.path).suffix.lower()
+        if "/blob/" in lowered and (suffix in TEXT_EXTENSIONS or suffix in TABULAR_EXTENSIONS):
+            return "github_file"
         return "github"
     if "colab.research.google.com" in lowered or lowered.endswith(".ipynb") or "/blob/" in lowered:
         return "colab"
@@ -161,7 +177,34 @@ def detect_submission_type(url: str) -> str:
         return "drive"
     if lowered.endswith(".zip"):
         return "zip"
+    if any(lowered.endswith(ext) for ext in TABULAR_EXTENSIONS):
+        return "tabular"
     return "other"
+
+
+def extract_tabular_content(raw_bytes: bytes, extension: str) -> tuple[str, dict[str, Any]]:
+    suffix = (extension or "").lower()
+    if suffix == ".csv":
+        df = pd.read_csv(io.BytesIO(raw_bytes))
+        return df.to_csv(index=False), {"files_read": 1, "rows": int(df.shape[0]), "columns": int(df.shape[1])}
+    df_map = pd.read_excel(io.BytesIO(raw_bytes), sheet_name=None)
+    parts: list[str] = []
+    total_rows = 0
+    total_columns = 0
+    for sheet_name, df in df_map.items():
+        total_rows += int(df.shape[0])
+        total_columns = max(total_columns, int(df.shape[1]))
+        parts.append(f"# SHEET: {sheet_name}")
+        if df.empty:
+            parts.append("(empty sheet)")
+        else:
+            parts.append(df.to_csv(index=False))
+    return "\n\n".join(parts).strip(), {
+        "files_read": 1,
+        "sheet_count": len(df_map),
+        "rows": total_rows,
+        "columns": total_columns,
+    }
 
 
 def fetch_url_content(url: str, timeout_seconds: int = 30) -> bytes:
@@ -294,14 +337,27 @@ def extract_github_repo_content(repo_url: str) -> tuple[str, dict[str, Any]]:
 
 def extract_submission_content(url: str, submission_type: str, timeout_seconds: int = 30) -> tuple[str, dict[str, Any]]:
     try:
+        suffix = Path(urlparse(url).path if is_url(url) else url).suffix.lower()
         if submission_type == "local_text":
             return read_local_text_file(url)
         if submission_type == "local_dir":
             return extract_local_directory_content(url)
+        if submission_type == "tabular" and not is_url(url):
+            return extract_tabular_content(Path(url).read_bytes(), suffix)
         if submission_type == "zip" and not is_url(url):
             return extract_zip_content(Path(url).read_bytes())
         if submission_type == "github":
             return extract_github_repo_content(url)
+        if submission_type == "github_file":
+            raw_url = build_raw_github_url(url)
+            data = fetch_url_content(raw_url, timeout_seconds)
+            if suffix == ".ipynb":
+                return extract_notebook_cells(data), {"files_read": 1}
+            if suffix in TABULAR_EXTENSIONS:
+                return extract_tabular_content(data, suffix)
+            return data.decode("utf-8", errors="ignore"), {"files_read": 1}
+        if submission_type == "tabular":
+            return extract_tabular_content(fetch_url_content(url, timeout_seconds), suffix)
         if submission_type == "zip":
             return extract_zip_content(fetch_url_content(url, timeout_seconds))
         if submission_type == "colab":

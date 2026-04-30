@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Auto Evaluator</title>
+  <style>
+    :root {
+      --bg: #f6efe5;
+      --ink: #1f2937;
+      --accent: #0f766e;
+      --accent-2: #f97316;
+      --card: #fffdf9;
+      --danger: #b91c1c;
+      --muted: #6b7280;
+      --line: #e5dccf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 10%, #fde68a 0%, transparent 28%),
+        radial-gradient(circle at 88% 20%, #99f6e4 0%, transparent 32%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 980px; margin: 40px auto; padding: 0 16px; }
+    .hero h1 { margin: 0; font-size: clamp(1.8rem, 5vw, 3rem); }
+    .hero p { margin: 8px 0 0; color: var(--muted); }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 22px;
+      margin-top: 20px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+    }
+    label { display: block; font-weight: 600; margin-bottom: 8px; }
+    input[type="file"], input[type="text"] {
+      width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px;
+      background: #fff;
+    }
+    .row { margin-bottom: 16px; }
+    .checkbox { display: flex; gap: 10px; align-items: center; }
+    .btn {
+      border: 0; background: linear-gradient(90deg, var(--accent), #0ea5e9);
+      color: white; font-weight: 700; padding: 11px 16px; border-radius: 11px; cursor: pointer;
+    }
+    .error {
+      color: var(--danger); background: #fef2f2; border: 1px solid #fecaca;
+      border-radius: 10px; padding: 10px 12px;
+    }
+    .overlay {
+      position: fixed; inset: 0; background: rgba(17, 24, 39, 0.55);
+      display: none; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .overlay.show { display: flex; }
+    .status {
+      width: min(540px, 92vw); background: #fff; border-radius: 16px; padding: 20px;
+      border: 1px solid #e5e7eb; box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+    }
+    .bar { height: 10px; background: #e5e7eb; border-radius: 100px; overflow: hidden; margin-top: 10px; }
+    .fill { height: 100%; width: 15%; background: linear-gradient(90deg, var(--accent-2), #f59e0b); animation: load 2s infinite; }
+    @keyframes load { 0% {transform: translateX(-100%);} 100% {transform: translateX(500%);} }
+    .muted { color: var(--muted); font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Auto Evaluator</h1>
+      <p>Upload an input workbook, run grading, and download a complete report.</p>
+    </section>
+    <section class="card">
+      {% if error %}<p class="error">{{ error }}</p>{% endif %}
+      <form id="evalForm" method="post" action="/evaluate" enctype="multipart/form-data">
+        <div class="row">
+          <label for="input_file">Input Excel (.xlsx)</label>
+          <input id="input_file" type="file" name="input_file" accept=".xlsx" required>
+        </div>
+        <div class="row">
+          <label for="output_name">Output file name</label>
+          <input id="output_name" type="text" name="output_name" value="output.xlsx">
+        </div>
+        <div class="row checkbox">
+          <input id="fallback_mode" type="checkbox" name="fallback_mode" checked>
+          <label for="fallback_mode">Use fallback mode</label>
+        </div>
+        <div class="row checkbox">
+          <input id="check_plagiarism" type="checkbox" name="check_plagiarism">
+          <label for="check_plagiarism">Run plagiarism check</label>
+        </div>
+        <button class="btn" type="submit">Run Evaluation</button>
+      </form>
+      <p class="muted">Tip: plagiarism check runs only when enabled.</p>
+    </section>
+  </div>
+  <div id="overlay" class="overlay" aria-live="polite" aria-busy="true">
+    <div class="status">
+      <h3 id="statusText">Starting evaluation...</h3>
+      <div class="bar"><div class="fill"></div></div>
+      <p class="muted" id="statusSub">Please keep this tab open while we process your workbook.</p>
+    </div>
+  </div>
+  <script>
+    const form = document.getElementById("evalForm");
+    const overlay = document.getElementById("overlay");
+    const statusText = document.getElementById("statusText");
+    const statusSub = document.getElementById("statusSub");
+    form.addEventListener("submit", () => {
+      overlay.classList.add("show");
+      const steps = [
+        ["Validating workbook structure...", "Checking assignment/submission sheets and required columns."],
+        ["Running evaluation pipeline...", "Generating rubric, validating links, and extracting content."],
+        ["Finalizing report...", "Preparing summary and detailed breakdown sheets."]
+      ];
+      let idx = 0;
+      const interval = setInterval(() => {
+        idx = Math.min(idx + 1, steps.length - 1);
+        statusText.textContent = steps[idx][0];
+        statusSub.textContent = steps[idx][1];
+      }, 2200);
+      window.addEventListener("beforeunload", () => clearInterval(interval), { once: true });
+    });
+  </script>
+</body>
+</html>
